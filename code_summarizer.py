@@ -5,19 +5,17 @@ import ast
 import json
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
-
 from dotenv import load_dotenv
 import openai
 
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
+CODEBASE_PATH = os.getenv("CODEBASE_PATH")
 
-# BASE_DIR = Path(__file__).resolve().parent
 BASE_DIR = Path(__file__).resolve().parent.parent
-SCRIPT_DIR = BASE_DIR / "scripts"
-SRC_DIR = BASE_DIR 
+SCRIPT_DIR = Path(__file__).parent / "scripts"
+SRC_DIR = Path(CODEBASE_PATH) if CODEBASE_PATH else BASE_DIR
 print(f"SRC_DIR: {SRC_DIR}")
-
 
 ignore_patterns = []
 gitignore_path = BASE_DIR / ".gitignore"
@@ -43,11 +41,12 @@ def get_components(file_path):
 
     try:
         result = subprocess.run(
-            ["node", str(BASE_DIR / "gpt4-helper" / "scripts" / "parse.js"), str(file_path)],
+            ["node", str(SCRIPT_DIR / "parse.js"), str(file_path)],
             capture_output=True,
             text=True,
             check=True
-        )
+)
+
     except subprocess.CalledProcessError as e:
         print("An error occurred while running parse.js:")
         print("Return code:", e.returncode)
@@ -58,15 +57,11 @@ def get_components(file_path):
     print("stdout:", result.stdout)
     print("stderr:", result.stderr)
 
-    # Remember to delete the temporary file after use
     os.unlink(tmp_filepath)
 
     components = json.loads(result.stdout)
 
     return components
-
-
-
 
 def summarize_code(file_path):
     components = get_components(file_path)
@@ -104,9 +99,6 @@ def main():
     with open('code_summaries.txt', 'w') as f:
         for code_summary in code_summaries:
             f.write(code_summary + '\n')
-
-
-
 
 if __name__ == "__main__":
     main()
