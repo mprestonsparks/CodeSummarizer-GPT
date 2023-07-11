@@ -11,6 +11,10 @@ import openai
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 CODEBASE_PATH = os.getenv("CODEBASE_PATH")
+print(f"Codebase Path: {os.getenv('CODEBASE_PATH')}")
+
+if not os.path.exists('summaries'):
+    os.makedirs('summaries')
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SCRIPT_DIR = Path(__file__).parent / "scripts"
@@ -18,14 +22,14 @@ SRC_DIR = Path(CODEBASE_PATH) if CODEBASE_PATH else BASE_DIR
 print(f"SRC_DIR: {SRC_DIR}")
 
 ignore_patterns = []
-gitignore_path = BASE_DIR / ".gitignore"
+gitignore_path = SRC_DIR / ".gitignore"
 if gitignore_path.exists():
     with open(gitignore_path, "r") as f:
-        ignore_patterns.extend(f.read().splitlines())
+        ignore_patterns.extend(line.rstrip('/') if line.endswith('/') else line for line in f.read().splitlines())
 ignore_path = BASE_DIR / ".ignore"
 if ignore_path.exists():
     with open(ignore_path, "r") as f:
-        ignore_patterns.extend(f.read().splitlines())
+        ignore_patterns.extend(line.rstrip('/') if line.endswith('/') else line for line in f.read().splitlines())
 
 ignore_spec = PathSpec.from_lines(GitWildMatchPattern, ignore_patterns)
 
@@ -45,8 +49,7 @@ def get_components(file_path):
             capture_output=True,
             text=True,
             check=True
-)
-
+        )
     except subprocess.CalledProcessError as e:
         print("An error occurred while running parse.js:")
         print("Return code:", e.returncode)
@@ -86,6 +89,7 @@ def summarize_code(file_path):
 def main():
     code_summaries = []
     for root, dirs, files in os.walk(SRC_DIR):
+        dirs[:] = [d for d in dirs if not ignore_spec.match_file(os.path.join(root, d))]
         for file in files:
             if file.endswith(".js") or file.endswith(".jsx"):
                 full_file_path = os.path.join(root, file)
@@ -93,12 +97,13 @@ def main():
                     continue
                 summary = summarize_code(full_file_path)
                 relative_file_path = os.path.relpath(full_file_path, str(SRC_DIR))
-                print(f"{relative_file_path}: {summary}")
-                code_summaries.append(f"{relative_file_path}: {summary}")
+                print(f"{relative_file_path}:\n\t{summary}")
+                code_summaries.append(f"{relative_file_path}:\n\t{summary}")
 
-    with open('code_summaries.txt', 'w') as f:
+    with open('summaries/code-summaries.txt', 'w') as f:
         for code_summary in code_summaries:
-            f.write(code_summary + '\n')
+            f.write(code_summary + '\n\n' + '*'*30 + '\n\n')
+
 
 if __name__ == "__main__":
     main()

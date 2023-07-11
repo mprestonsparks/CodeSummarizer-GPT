@@ -1,0 +1,10 @@
+pathspec
+python-dotenv
+openai
+
+# The following libraries are also used (but should be included with python by default):
+# os
+# pathlib
+# subprocess
+# ast
+#json
